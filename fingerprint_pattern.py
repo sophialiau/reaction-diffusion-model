@@ -94,7 +94,7 @@ class FingerprintPatternModel:
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
-    colors = ['#FFA0AC', '#B4DC7F']  # Pink to Green
+    colors = ['#EFCFE3', '#B3DEE2']  # Soft pink to light blue
     return LinearSegmentedColormap.from_list('custom', colors)
 
 def main():

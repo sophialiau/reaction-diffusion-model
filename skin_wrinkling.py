@@ -39,19 +39,19 @@ class SkinWrinklingModel:
         y = np.linspace(-1, 1, self.size)
         X, Y = np.meshgrid(x, y)
         
-        # Create initial collagen orientation
+        # Create initial collagen orientation with more natural variation
         # This represents the initial collagen fiber network
         theta = np.arctan2(Y, X)
-        self.C = np.sin(4 * theta)  # Initial collagen orientation
+        self.C = np.sin(4 * theta) + 0.5 * np.sin(2 * theta) + 0.2 * np.random.random((self.size, self.size))
         
-        # Add initial mechanical stress
+        # Add initial mechanical stress with more natural variation
         # This represents the initial skin tension
         stress = np.random.normal(0, 0.1, (self.size, self.size))
-        self.V = 0.5 + stress
+        self.V = 0.5 + stress + 0.1 * np.sin(4 * X) * np.cos(4 * Y)
         
-        # Initialize collagen resistance
+        # Initialize collagen resistance with more natural variation
         # Higher in areas with aligned collagen
-        self.U = 1 - 0.5 * np.abs(self.C)
+        self.U = 1 - 0.5 * np.abs(self.C) + 0.1 * np.random.random((self.size, self.size))
         
         # Add biological noise to simulate tissue variability
         noise = np.random.normal(0, 0.02, (self.size, self.size))
@@ -74,25 +74,35 @@ class SkinWrinklingModel:
         Lv = self.laplacian(self.V)
         Lc = self.laplacian(self.C)
         
-        # Calculate the reaction terms
+        # Calculate the reaction terms with more organic variation
         # This represents the interaction between mechanical stress and collagen
         uv2 = self.U[1:-1, 1:-1] * self.V[1:-1, 1:-1] * self.V[1:-1, 1:-1]
         
-        # Update collagen orientation (diffusion and stress effects)
-        self.C[1:-1, 1:-1] += self.dt * (0.1 * Lc + self.collagen_rate * self.V[1:-1, 1:-1])
+        # Add temporal variation to parameters
+        stress_var = self.stress_rate * (1 + 0.1 * np.sin(0.1 * np.random.random()))
+        collagen_var = self.collagen_rate * (1 + 0.1 * np.cos(0.1 * np.random.random()))
+        
+        # Update collagen orientation with more organic dynamics
+        self.C[1:-1, 1:-1] += self.dt * (0.1 * Lc + collagen_var * self.V[1:-1, 1:-1] * 
+                                        np.sin(2 * np.pi * self.C[1:-1, 1:-1]) * 
+                                        (1 + 0.2 * np.sin(0.05 * self.C[1:-1, 1:-1])))
         self.C = np.clip(self.C, -1, 1)
         
-        # Stress accumulation effect based on collagen orientation
-        stress_effect = 1 + self.stress_rate * np.abs(self.C[1:-1, 1:-1])
+        # Stress accumulation effect with more natural variation
+        stress_effect = 1 + stress_var * (np.abs(self.C[1:-1, 1:-1]) + 0.5 * self.V[1:-1, 1:-1]) * \
+                       (1 + 0.1 * np.sin(0.2 * self.V[1:-1, 1:-1]))
         
-        # Update the grid
+        # Update the grid with more organic dynamics
         # Add a small amount of noise to simulate tissue variability
         noise = np.random.normal(0, 0.001, (self.size-2, self.size-2))
         
-        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1])) + noise
-        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * stress_effect - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
+        # Update with feedback from collagen orientation and natural variation
+        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1]) + 
+                                        0.1 * np.abs(self.C[1:-1, 1:-1]) * (1 + 0.1 * np.sin(0.1 * self.U[1:-1, 1:-1]))) + noise
+        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * stress_effect - 
+                                        (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
         
-        # Enforce boundary conditions
+        # Enforce boundary conditions with smooth transitions
         self.U[0, :] = self.U[1, :]
         self.U[-1, :] = self.U[-2, :]
         self.U[:, 0] = self.U[:, 1]
@@ -110,7 +120,7 @@ class SkinWrinklingModel:
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
-    colors = ['#FFA0AC', '#B4DC7F']  # Pink to Green
+    colors = ['#EFCFE3', '#B3DEE2']  # Soft pink to light blue
     return LinearSegmentedColormap.from_list('custom', colors)
 
 def main():
@@ -138,8 +148,8 @@ def main():
         img.set_array(model.V)
         return [img]
     
-    # Create the animation with variable speed
-    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True)
+    # Create the animation with proper parameters
+    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True, cache_frame_data=False)
     
     def update_speed(val):
         anim.event_source.interval = 1000 / val

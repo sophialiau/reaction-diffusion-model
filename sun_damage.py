@@ -24,7 +24,7 @@ class SunDamageModel:
         # Set parameters for sun damage
         # Parameters tuned to match UV damage dynamics
         self.Du, self.Dv = 0.16, 0.08  # Diffusion rates
-        self.f, self.k = 0.0545, 0.062  # Feed and kill rates
+        self.f, self.k = 0.035, 0.065  # Feed and kill rates
         self.uv_intensity = 0.02       # UV radiation intensity
         self.melanin_rate = 0.01       # Rate of melanin production
         self.dna_repair_rate = 0.005   # Rate of DNA repair
@@ -40,18 +40,18 @@ class SunDamageModel:
         y = np.linspace(-1, 1, self.size)
         X, Y = np.meshgrid(x, y)
         
-        # Create initial UV exposure pattern
+        # Create initial UV exposure pattern with more natural variation
         # This represents the initial UV radiation
-        uv_pattern = np.sin(8 * X) * np.cos(8 * Y)  # Simulating UV light patterns
+        uv_pattern = np.sin(8 * X) * np.cos(8 * Y) + 0.5 * np.sin(4 * X) * np.cos(4 * Y)
         self.V = 0.5 + 0.5 * uv_pattern
         
-        # Initialize melanin distribution
+        # Initialize melanin distribution with more natural variation
         # Higher in areas with more UV exposure
-        self.U = 1 - 0.5 * np.abs(uv_pattern)
+        self.U = 1 - 0.5 * np.abs(uv_pattern) + 0.1 * np.random.random((self.size, self.size))
         
-        # Initialize DNA damage
+        # Initialize DNA damage with more natural variation
         # Higher in areas with more UV exposure
-        self.D = 0.2 * np.abs(uv_pattern)
+        self.D = 0.2 * np.abs(uv_pattern) + 0.05 * np.random.random((self.size, self.size))
         
         # Add biological noise to simulate skin variability
         noise = np.random.normal(0, 0.02, (self.size, self.size))
@@ -74,25 +74,35 @@ class SunDamageModel:
         Lv = self.laplacian(self.V)
         Ld = self.laplacian(self.D)
         
-        # Calculate the reaction terms
+        # Calculate the reaction terms with more organic variation
         # This represents the interaction between UV damage and melanin
         uv2 = self.U[1:-1, 1:-1] * self.V[1:-1, 1:-1] * self.V[1:-1, 1:-1]
         
-        # Update DNA damage (diffusion and UV effects)
-        self.D[1:-1, 1:-1] += self.dt * (0.1 * Ld + self.uv_intensity * self.V[1:-1, 1:-1] - self.dna_repair_rate)
+        # Add temporal variation to parameters
+        uv_var = self.uv_intensity * (1 + 0.1 * np.sin(0.1 * np.random.random()))
+        melanin_var = self.melanin_rate * (1 + 0.1 * np.cos(0.1 * np.random.random()))
+        
+        # Update DNA damage with more organic dynamics
+        self.D[1:-1, 1:-1] += self.dt * (0.1 * Ld + uv_var * self.V[1:-1, 1:-1] - 
+                                        self.dna_repair_rate * self.D[1:-1, 1:-1] * 
+                                        (1 + 0.2 * np.sin(0.05 * self.D[1:-1, 1:-1])))
         self.D = np.clip(self.D, 0, 1)
         
-        # Melanin production effect based on UV exposure
-        melanin_effect = 1 + self.melanin_rate * self.V[1:-1, 1:-1]
+        # Melanin production effect with more natural variation
+        melanin_effect = 1 + melanin_var * (self.V[1:-1, 1:-1] + 0.5 * self.D[1:-1, 1:-1]) * \
+                        (1 + 0.1 * np.sin(0.2 * self.V[1:-1, 1:-1]))
         
-        # Update the grid
+        # Update the grid with more organic dynamics
         # Add a small amount of noise to simulate biological variability
         noise = np.random.normal(0, 0.001, (self.size-2, self.size-2))
         
-        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1])) + noise
-        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * melanin_effect - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
+        # Update with feedback from DNA damage and natural variation
+        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1]) + 
+                                        0.1 * self.D[1:-1, 1:-1] * (1 + 0.1 * np.sin(0.1 * self.U[1:-1, 1:-1]))) + noise
+        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * melanin_effect - 
+                                        (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
         
-        # Enforce boundary conditions
+        # Enforce boundary conditions with smooth transitions
         self.U[0, :] = self.U[1, :]
         self.U[-1, :] = self.U[-2, :]
         self.U[:, 0] = self.U[:, 1]
@@ -110,7 +120,7 @@ class SunDamageModel:
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
-    colors = ['#FFA0AC', '#B4DC7F']  # Pink to Green
+    colors = ['#EFCFE3', '#B3DEE2']  # Soft pink to light blue
     return LinearSegmentedColormap.from_list('custom', colors)
 
 def main():
@@ -138,8 +148,8 @@ def main():
         img.set_array(model.V)
         return [img]
     
-    # Create the animation with variable speed
-    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True)
+    # Create the animation with proper parameters
+    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True, cache_frame_data=False)
     
     def update_speed(val):
         anim.event_source.interval = 1000 / val

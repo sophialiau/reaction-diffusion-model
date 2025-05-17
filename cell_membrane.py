@@ -85,8 +85,8 @@ class CellMembraneModel:
         self.T[1:-1, 1:-1] += self.dt * (self.tension_rate * Lt - 0.1 * self.V[1:-1, 1:-1])
         self.T = np.clip(self.T, 0, 1)
         
-        # Domain formation effect based on tension
-        domain_effect = np.where(self.T > self.domain_threshold, 1.2, 1.0)
+        # Domain formation effect based on tension (only for inner grid)
+        domain_effect = np.where(self.T[1:-1, 1:-1] > self.domain_threshold, 1.2, 1.0)
         
         # Update the grid
         # Add a small amount of noise to simulate molecular fluctuations
@@ -113,7 +113,7 @@ class CellMembraneModel:
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
-    colors = ['#FFA0AC', '#B4DC7F']  # Pink to Green
+    colors = ['#EFCFE3', '#B3DEE2']  # Soft pink to light blue
     return LinearSegmentedColormap.from_list('custom', colors)
 
 def main():
@@ -141,8 +141,8 @@ def main():
         img.set_array(model.V)
         return [img]
     
-    # Create the animation with variable speed
-    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True)
+    # Create the animation with proper parameters
+    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True, cache_frame_data=False)
     
     def update_speed(val):
         anim.event_source.interval = 1000 / val

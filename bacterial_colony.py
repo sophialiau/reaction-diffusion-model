@@ -83,8 +83,8 @@ class BacterialColonyModel:
         self.N[1:-1, 1:-1] += self.dt * (0.1 * Ln - self.nutrient_consumption * self.V[1:-1, 1:-1])
         self.N = np.clip(self.N, 0, 1)
         
-        # Quorum sensing effect
-        quorum_effect = np.where(self.V > self.quorum_threshold, 1.2, 1.0)
+        # Quorum sensing effect (only for the inner grid)
+        quorum_effect = np.where(self.V[1:-1, 1:-1] > self.quorum_threshold, 1.2, 1.0)
         
         # Update the grid
         # Add a small amount of noise to simulate biological variability
@@ -111,7 +111,7 @@ class BacterialColonyModel:
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
-    colors = ['#FFA0AC', '#B4DC7F']  # Pink to Green
+    colors = ['#EFCFE3', '#B3DEE2']  # Soft pink to light blue
     return LinearSegmentedColormap.from_list('custom', colors)
 
 def main():
@@ -139,8 +139,8 @@ def main():
         img.set_array(model.V)
         return [img]
     
-    # Create the animation with variable speed
-    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True)
+    # Create the animation with proper parameters
+    anim = FuncAnimation(fig, update, frames=200, interval=50, blit=True, cache_frame_data=False)
     
     def update_speed(val):
         anim.event_source.interval = 1000 / val
