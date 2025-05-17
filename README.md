@@ -43,3 +43,16 @@ You can modify these parameters in the `GrayScottModel` class initialization to 
 ## Visualization
 
 The simulation shows an animated visualization of the chemical concentration patterns. The color represents the concentration of chemical V, with brighter colors indicating higher concentrations.
+
+## Biological Phenomena
+
+The following biological phenomena have been created via respective base parameters.
+- 'zebra_pattern.py': based off of lines + added melanocyte behavior & Turing instability seed points
+- 'leopard_pattern.py': based off of dots + added melanocyte clustering & primary/secondary spot formation
+- 'fingerprint_pattern.py': based off of spiral + added epidermal ridge formation, developmental timing
+- 'bacterial_colony.py': from a central inoculation point shows branching patterns + environmental heterogeneity + added nutrient diffusion & consumption
+- 'cell_membrane.py': simulates cell membrane pattern formation from circular membrane structure, demonstrates lipid bilayer domain formation + added tension dynamics, protein interactions and fluctuations
+- 'melanoma_pattern.py': simulates tumor growth and angiogenesis + tissue invasion dynamics and lesion development
+- 'skin_wrinkling.py': demonstrates skin under mechanical stress accumulation with collagen fiber orientation and tissue resistance. 
+
+All of the above include noise to simulate biological variability.

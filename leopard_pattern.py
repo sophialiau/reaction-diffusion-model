@@ -17,21 +17,48 @@ class LeopardPatternModel:
         self.dt = dt
         
         # Initialize the grid
-        self.U = np.ones((size, size))
-        self.V = np.zeros((size, size))
+        self.U = np.ones((size, size))  # Activator (melanocyte activator)
+        self.V = np.zeros((size, size))  # Inhibitor (melanocyte inhibitor)
         
         # Set parameters for leopard spots
-        self.Du, self.Dv = 0.16, 0.08
-        self.f, self.k = 0.0545, 0.062
+        # Parameters tuned to match melanocyte clustering behavior
+        self.Du, self.Dv = 0.16, 0.08  # Diffusion rates
+        self.f, self.k = 0.0545, 0.062  # Feed and kill rates
         
         # Initialize leopard pattern
         self.init_leopard()
             
     def init_leopard(self):
-        """Initialize leopard spot pattern."""
-        # Create random spots
-        spots = np.random.random((self.size, self.size)) > 0.95
-        self.V[spots] = 0.5
+        """Initialize leopard spot pattern with biologically realistic conditions."""
+        # Create initial conditions based on embryonic development
+        # Start with a gradient from back to front (dorsal-ventral axis)
+        y = np.linspace(0, 1, self.size)
+        gradient = np.tile(y, (self.size, 1)).T
+        
+        # Create initial melanocyte clusters
+        # These represent the initial spots that will grow and develop
+        clusters = np.zeros((self.size, self.size))
+        
+        # Add primary spots (larger, more stable)
+        primary_spots = np.random.random((self.size, self.size)) > 0.97
+        clusters[primary_spots] = 0.7
+        
+        # Add secondary spots (smaller, more dynamic)
+        secondary_spots = np.random.random((self.size, self.size)) > 0.99
+        clusters[secondary_spots] = 0.4
+        
+        # Apply developmental timing gradient
+        # This simulates the wave of pattern formation from back to front
+        timing = np.exp(-3 * (1 - gradient))
+        self.V = clusters * timing
+        
+        # Add biological noise to simulate cell-to-cell variability
+        noise = np.random.normal(0, 0.03, (self.size, self.size))
+        self.V += noise
+        self.V = np.clip(self.V, 0, 1)
+        
+        # Initialize activator concentration
+        self.U = 1 - self.V  # Inverse relationship between activator and inhibitor
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -49,11 +76,15 @@ class LeopardPatternModel:
         Lv = self.laplacian(self.V)
         
         # Calculate the reaction terms
+        # This represents the interaction between melanocyte activators and inhibitors
         uv2 = self.U[1:-1, 1:-1] * self.V[1:-1, 1:-1] * self.V[1:-1, 1:-1]
         
         # Update the grid
-        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1]))
-        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 - (self.f + self.k) * self.V[1:-1, 1:-1])
+        # Add a small amount of noise to simulate biological variability
+        noise = np.random.normal(0, 0.001, (self.size-2, self.size-2))
+        
+        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1])) + noise
+        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
         
         # Enforce boundary conditions
         self.U[0, :] = self.U[1, :]
@@ -85,7 +116,7 @@ def main():
     # Set up the plot
     img = ax.imshow(model.V, cmap=custom_cmap, interpolation='bilinear')
     plt.colorbar(img, ax=ax)
-    ax.set_title('Leopard Spot Pattern Formation')
+    ax.set_title('Leopard Spot Pattern Formation\n(Simulating Melanocyte Clustering)')
     
     # Add speed control slider
     ax_slider = plt.axes([0.2, 0.02, 0.6, 0.03])

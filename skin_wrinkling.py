@@ -4,10 +4,10 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.widgets import Slider
 
-class CellMembraneModel:
+class SkinWrinklingModel:
     def __init__(self, size=100, dt=1.0):
         """
-        Initialize the cell membrane pattern model.
+        Initialize the skin wrinkling pattern model.
         
         Parameters:
         - size: Size of the grid (size x size)
@@ -17,49 +17,46 @@ class CellMembraneModel:
         self.dt = dt
         
         # Initialize the grid
-        self.U = np.ones((size, size))  # Activator (lipid domain activator)
-        self.V = np.zeros((size, size))  # Inhibitor (lipid domain inhibitor)
-        self.T = np.ones((size, size))   # Membrane tension
+        self.U = np.ones((size, size))  # Activator (mechanical stress)
+        self.V = np.zeros((size, size))  # Inhibitor (collagen resistance)
+        self.C = np.zeros((size, size))  # Collagen orientation
         
-        # Set parameters for cell membrane
-        # Parameters tuned to match lipid domain formation
+        # Set parameters for skin wrinkling
+        # Parameters tuned to match skin mechanics
         self.Du, self.Dv = 0.14, 0.06  # Diffusion rates
         self.f, self.k = 0.035, 0.065  # Feed and kill rates
-        self.tension_rate = 0.01       # Rate of tension propagation
-        self.domain_threshold = 0.3    # Threshold for domain formation
+        self.stress_rate = 0.02        # Rate of stress accumulation
+        self.collagen_rate = 0.01      # Rate of collagen reorganization
         
-        # Initialize cell membrane
-        self.init_membrane()
+        # Initialize skin wrinkling pattern
+        self.init_wrinkling()
             
-    def init_membrane(self):
-        """Initialize cell membrane with biologically realistic conditions."""
-        # Create initial conditions based on membrane structure
-        # Start with a circular membrane
+    def init_wrinkling(self):
+        """Initialize skin wrinkling pattern with biologically realistic conditions."""
+        # Create initial conditions based on skin structure
+        # Start with a uniform skin surface
         x = np.linspace(-1, 1, self.size)
         y = np.linspace(-1, 1, self.size)
         X, Y = np.meshgrid(x, y)
-        R = np.sqrt(X**2 + Y**2)
         
-        # Create initial membrane structure
-        # This represents the initial lipid distribution
-        membrane = np.exp(-5 * R)  # Circular membrane
+        # Create initial collagen orientation
+        # This represents the initial collagen fiber network
+        theta = np.arctan2(Y, X)
+        self.C = np.sin(4 * theta)  # Initial collagen orientation
         
-        # Add initial lipid domains
-        # These represent the initial lipid rafts
-        domains = np.random.random((self.size, self.size)) > 0.95
-        self.V = membrane * (0.5 + 0.5 * domains)
+        # Add initial mechanical stress
+        # This represents the initial skin tension
+        stress = np.random.normal(0, 0.1, (self.size, self.size))
+        self.V = 0.5 + stress
         
-        # Initialize membrane tension
-        # Higher at edges, lower in center (simulating membrane curvature)
-        self.T = 1 - 0.5 * membrane
+        # Initialize collagen resistance
+        # Higher in areas with aligned collagen
+        self.U = 1 - 0.5 * np.abs(self.C)
         
-        # Add biological noise to simulate molecular fluctuations
+        # Add biological noise to simulate tissue variability
         noise = np.random.normal(0, 0.02, (self.size, self.size))
         self.V += noise
         self.V = np.clip(self.V, 0, 1)
-        
-        # Initialize activator concentration
-        self.U = 1 - self.V  # Inverse relationship between activator and inhibitor
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -75,25 +72,25 @@ class CellMembraneModel:
         # Calculate the Laplacian
         Lu = self.laplacian(self.U)
         Lv = self.laplacian(self.V)
-        Lt = self.laplacian(self.T)
+        Lc = self.laplacian(self.C)
         
         # Calculate the reaction terms
-        # This represents the interaction between lipid domains
+        # This represents the interaction between mechanical stress and collagen
         uv2 = self.U[1:-1, 1:-1] * self.V[1:-1, 1:-1] * self.V[1:-1, 1:-1]
         
-        # Update membrane tension (diffusion and domain effects)
-        self.T[1:-1, 1:-1] += self.dt * (self.tension_rate * Lt - 0.1 * self.V[1:-1, 1:-1])
-        self.T = np.clip(self.T, 0, 1)
+        # Update collagen orientation (diffusion and stress effects)
+        self.C[1:-1, 1:-1] += self.dt * (0.1 * Lc + self.collagen_rate * self.V[1:-1, 1:-1])
+        self.C = np.clip(self.C, -1, 1)
         
-        # Domain formation effect based on tension
-        domain_effect = np.where(self.T > self.domain_threshold, 1.2, 1.0)
+        # Stress accumulation effect based on collagen orientation
+        stress_effect = 1 + self.stress_rate * np.abs(self.C[1:-1, 1:-1])
         
         # Update the grid
-        # Add a small amount of noise to simulate molecular fluctuations
+        # Add a small amount of noise to simulate tissue variability
         noise = np.random.normal(0, 0.001, (self.size-2, self.size-2))
         
         self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1])) + noise
-        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * domain_effect - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
+        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * stress_effect - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
         
         # Enforce boundary conditions
         self.U[0, :] = self.U[1, :]
@@ -106,10 +103,10 @@ class CellMembraneModel:
         self.V[:, 0] = self.V[:, 1]
         self.V[:, -1] = self.V[:, -2]
         
-        self.T[0, :] = 1  # Constant tension at boundaries
-        self.T[-1, :] = 1
-        self.T[:, 0] = 1
-        self.T[:, -1] = 1
+        self.C[0, :] = 0  # No collagen orientation at boundaries
+        self.C[-1, :] = 0
+        self.C[:, 0] = 0
+        self.C[:, -1] = 0
 
 def create_custom_colormap():
     """Create a custom colormap with the specified colors."""
@@ -118,7 +115,7 @@ def create_custom_colormap():
 
 def main():
     # Create the model
-    model = CellMembraneModel(size=100)
+    model = SkinWrinklingModel(size=100)
     
     # Create figure with white background
     fig = plt.figure(figsize=(10, 8), facecolor='white')
@@ -130,7 +127,7 @@ def main():
     # Set up the plot
     img = ax.imshow(model.V, cmap=custom_cmap, interpolation='bilinear')
     plt.colorbar(img, ax=ax)
-    ax.set_title('Cell Membrane Dynamics\n(Simulating Lipid Domain Formation)')
+    ax.set_title('Skin Wrinkling Dynamics\n(Simulating Mechanical Stress & Collagen Reorganization)')
     
     # Add speed control slider
     ax_slider = plt.axes([0.2, 0.02, 0.6, 0.03])
