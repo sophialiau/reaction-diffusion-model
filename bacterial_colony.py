@@ -4,36 +4,43 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.widgets import Slider
 
-class GrayScottModel:
-    def __init__(self, size=100, dt=1.0, Du=0.16, Dv=0.08, f=0.035, k=0.065):
+class BacterialColonyModel:
+    def __init__(self, size=100, dt=1.0):
         """
-        Initialize the Gray-Scott model.
+        Initialize the bacterial colony pattern model.
         
         Parameters:
         - size: Size of the grid (size x size)
         - dt: Time step
-        - Du: Diffusion rate of chemical U
-        - Dv: Diffusion rate of chemical V
-        - f: Feed rate
-        - k: Kill rate
         """
         self.size = size
         self.dt = dt
-        self.Du = Du
-        self.Dv = Dv
-        self.f = f
-        self.k = k
         
-        # Initialize the grid with random values
+        # Initialize the grid
         self.U = np.ones((size, size))
         self.V = np.zeros((size, size))
         
-        # Add some random noise to create initial patterns
-        r = 20
-        self.U[size//2-r:size//2+r, size//2-r:size//2+r] = 0.5
-        self.V[size//2-r:size//2+r, size//2-r:size//2+r] = 0.25
-        self.U += np.random.random((size, size)) * 0.1
-        self.V += np.random.random((size, size)) * 0.1
+        # Set parameters for bacterial colony patterns
+        # These parameters are tuned to create branching patterns similar to bacterial colonies
+        self.Du, self.Dv = 0.16, 0.08
+        self.f, self.k = 0.022, 0.059
+        
+        # Initialize bacterial colony pattern
+        self.init_colony()
+            
+    def init_colony(self):
+        """Initialize bacterial colony pattern."""
+        # Create a central inoculation point with some random noise
+        center = self.size // 2
+        radius = 5
+        y, x = np.ogrid[-center:self.size-center, -center:self.size-center]
+        mask = x*x + y*y <= radius*radius
+        self.V[mask] = 0.5
+        
+        # Add some random noise to create initial heterogeneity
+        noise = np.random.normal(0, 0.1, (self.size, self.size))
+        self.V += noise
+        self.V = np.clip(self.V, 0, 1)
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -75,7 +82,7 @@ def create_custom_colormap():
 
 def main():
     # Create the model
-    model = GrayScottModel(size=100)
+    model = BacterialColonyModel(size=100)
     
     # Create figure with white background
     fig = plt.figure(figsize=(10, 8), facecolor='white')
@@ -87,6 +94,7 @@ def main():
     # Set up the plot
     img = ax.imshow(model.V, cmap=custom_cmap, interpolation='bilinear')
     plt.colorbar(img, ax=ax)
+    ax.set_title('Bacterial Colony Pattern Formation')
     
     # Add speed control slider
     ax_slider = plt.axes([0.2, 0.02, 0.6, 0.03])

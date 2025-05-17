@@ -2,6 +2,10 @@
 
 This project implements the Gray-Scott reaction-diffusion model, which is a mathematical model that describes pattern formation in chemical systems. The model simulates the interaction between two chemical species that diffuse and react with each other.
 
+## Important Notes
+
+This is simply a for leisure. First time programming with Cursor and Agent!
+
 ## Requirements
 
 - Python 3.6+

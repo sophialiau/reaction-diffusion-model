@@ -4,36 +4,38 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.widgets import Slider
 
-class GrayScottModel:
-    def __init__(self, size=100, dt=1.0, Du=0.16, Dv=0.08, f=0.035, k=0.065):
+class FingerprintPatternModel:
+    def __init__(self, size=100, dt=1.0):
         """
-        Initialize the Gray-Scott model.
+        Initialize the fingerprint pattern model.
         
         Parameters:
         - size: Size of the grid (size x size)
         - dt: Time step
-        - Du: Diffusion rate of chemical U
-        - Dv: Diffusion rate of chemical V
-        - f: Feed rate
-        - k: Kill rate
         """
         self.size = size
         self.dt = dt
-        self.Du = Du
-        self.Dv = Dv
-        self.f = f
-        self.k = k
         
-        # Initialize the grid with random values
+        # Initialize the grid
         self.U = np.ones((size, size))
         self.V = np.zeros((size, size))
         
-        # Add some random noise to create initial patterns
-        r = 20
-        self.U[size//2-r:size//2+r, size//2-r:size//2+r] = 0.5
-        self.V[size//2-r:size//2+r, size//2-r:size//2+r] = 0.25
-        self.U += np.random.random((size, size)) * 0.1
-        self.V += np.random.random((size, size)) * 0.1
+        # Set parameters for fingerprint patterns
+        self.Du, self.Dv = 0.16, 0.08
+        self.f, self.k = 0.029, 0.057
+        
+        # Initialize fingerprint pattern
+        self.init_fingerprint()
+            
+    def init_fingerprint(self):
+        """Initialize fingerprint-like pattern."""
+        # Create spiral-like initial conditions
+        x = np.linspace(-1, 1, self.size)
+        y = np.linspace(-1, 1, self.size)
+        X, Y = np.meshgrid(x, y)
+        R = np.sqrt(X**2 + Y**2)
+        theta = np.arctan2(Y, X)
+        self.V = 0.5 * (np.sin(5*theta + R*10) > 0)
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -75,7 +77,7 @@ def create_custom_colormap():
 
 def main():
     # Create the model
-    model = GrayScottModel(size=100)
+    model = FingerprintPatternModel(size=100)
     
     # Create figure with white background
     fig = plt.figure(figsize=(10, 8), facecolor='white')
@@ -87,6 +89,7 @@ def main():
     # Set up the plot
     img = ax.imshow(model.V, cmap=custom_cmap, interpolation='bilinear')
     plt.colorbar(img, ax=ax)
+    ax.set_title('Fingerprint Pattern Formation')
     
     # Add speed control slider
     ax_slider = plt.axes([0.2, 0.02, 0.6, 0.03])

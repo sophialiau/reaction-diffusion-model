@@ -4,36 +4,50 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.widgets import Slider
 
-class GrayScottModel:
-    def __init__(self, size=100, dt=1.0, Du=0.16, Dv=0.08, f=0.035, k=0.065):
+class CellMembraneModel:
+    def __init__(self, size=100, dt=1.0):
         """
-        Initialize the Gray-Scott model.
+        Initialize the cell membrane pattern model.
         
         Parameters:
         - size: Size of the grid (size x size)
         - dt: Time step
-        - Du: Diffusion rate of chemical U
-        - Dv: Diffusion rate of chemical V
-        - f: Feed rate
-        - k: Kill rate
         """
         self.size = size
         self.dt = dt
-        self.Du = Du
-        self.Dv = Dv
-        self.f = f
-        self.k = k
         
-        # Initialize the grid with random values
+        # Initialize the grid
         self.U = np.ones((size, size))
         self.V = np.zeros((size, size))
         
-        # Add some random noise to create initial patterns
-        r = 20
-        self.U[size//2-r:size//2+r, size//2-r:size//2+r] = 0.5
-        self.V[size//2-r:size//2+r, size//2-r:size//2+r] = 0.25
-        self.U += np.random.random((size, size)) * 0.1
-        self.V += np.random.random((size, size)) * 0.1
+        # Set parameters for cell membrane patterns
+        # These parameters are tuned to create patterns similar to lipid bilayer formations
+        self.Du, self.Dv = 0.16, 0.08
+        self.f, self.k = 0.026, 0.055
+        
+        # Initialize cell membrane pattern
+        self.init_membrane()
+            
+    def init_membrane(self):
+        """Initialize cell membrane pattern."""
+        # Create a circular membrane with some initial perturbations
+        center = self.size // 2
+        radius = 30
+        y, x = np.ogrid[-center:self.size-center, -center:self.size-center]
+        dist = np.sqrt(x*x + y*y)
+        
+        # Create a ring pattern with some noise
+        ring = np.abs(dist - radius) < 2
+        self.V[ring] = 0.5
+        
+        # Add some random perturbations to create initial membrane instability
+        noise = np.random.normal(0, 0.05, (self.size, self.size))
+        self.V += noise
+        self.V = np.clip(self.V, 0, 1)
+        
+        # Create some initial lipid domains
+        domains = np.random.random((self.size, self.size)) > 0.95
+        self.V[domains] = 0.7
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -75,7 +89,7 @@ def create_custom_colormap():
 
 def main():
     # Create the model
-    model = GrayScottModel(size=100)
+    model = CellMembraneModel(size=100)
     
     # Create figure with white background
     fig = plt.figure(figsize=(10, 8), facecolor='white')
@@ -87,6 +101,7 @@ def main():
     # Set up the plot
     img = ax.imshow(model.V, cmap=custom_cmap, interpolation='bilinear')
     plt.colorbar(img, ax=ax)
+    ax.set_title('Cell Membrane Pattern Formation')
     
     # Add speed control slider
     ax_slider = plt.axes([0.2, 0.02, 0.6, 0.03])
