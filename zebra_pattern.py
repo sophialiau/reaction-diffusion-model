@@ -20,58 +20,27 @@ class ZebraPatternModel:
         self.U = np.ones((size, size))  # Activator (melanocyte activator)
         self.V = np.zeros((size, size))  # Inhibitor (melanocyte inhibitor)
         
-        # Set parameters for zebra stripes
-        # Parameters tuned to match melanocyte behavior and stripe formation
-        self.Du, self.Dv = 0.16, 0.08  # Diffusion rates
-        self.f, self.k = 0.035, 0.065  # Feed and kill rates
+        # Corrected parameters
+        self.Du, self.Dv = 0.16, 0.04
+        self.f, self.k = 0.022, 0.051
         
         # Initialize zebra pattern
         self.init_zebra()
             
     def init_zebra(self):
         """Initialize zebra stripe pattern with biologically realistic conditions."""
-        # Create initial conditions based on embryonic development
-        # Start with a gradient from back to front (dorsal-ventral axis)
-        y = np.linspace(0, 1, self.size)
-        gradient = np.tile(y, (self.size, 1)).T
+        # Uniform initialization with tiny noise
+        self.U = np.ones((self.size, self.size))
+        self.V = np.zeros((self.size, self.size))
         
-        # Add multiple Turing instability seed points with more organic distribution
-        # These represent the initial melanocyte activation centers
-        num_seeds = 20  # Increased number of seed points
-        seed_points = np.zeros((self.size, self.size))
+        # Small centered perturbation
+        r = 5
+        self.V[self.size//2 - r:self.size//2 + r, self.size//2 - r:self.size//2 + r] = 0.25
+        self.U[self.size//2 - r:self.size//2 + r, self.size//2 - r:self.size//2 + r] = 0.5
         
-        # Create seed points in a more natural pattern
-        for _ in range(num_seeds):
-            # Random position with bias towards the center
-            x = int(np.random.normal(self.size/2, self.size/6))
-            y = int(np.random.normal(self.size/2, self.size/6))
-            x = np.clip(x, 0, self.size-1)
-            y = np.clip(y, 0, self.size-1)
-            
-            # Add a small cluster of activation
-            radius = np.random.randint(2, 5)
-            for i in range(-radius, radius+1):
-                for j in range(-radius, radius+1):
-                    if 0 <= x+i < self.size and 0 <= y+j < self.size:
-                        distance = np.sqrt(i*i + j*j)
-                        if distance <= radius:
-                            intensity = 0.5 * (1 - distance/radius)
-                            seed_points[x+i, y+j] = max(seed_points[x+i, y+j], intensity)
-        
-        self.V = seed_points
-        
-        # Add developmental timing gradient with more natural variation
-        # This simulates the wave of pattern formation from back to front
-        timing = np.exp(-5 * (1 - gradient)) * (1 + 0.2 * np.sin(8 * gradient))
-        self.V = self.V * timing
-        
-        # Add more organic noise to simulate biological variability
-        noise = np.random.normal(0, 0.05, (self.size, self.size))
-        self.V += noise
-        self.V = np.clip(self.V, 0, 1)
-        
-        # Initialize activator concentration with more natural variation
-        self.U = 1 - self.V + 0.1 * np.random.random((self.size, self.size))
+        # Optional: tiny overall noise (but much smaller)
+        self.U += np.random.normal(0, 0.001, (self.size, self.size))
+        self.V += np.random.normal(0, 0.001, (self.size, self.size))
 
     def laplacian(self, Z):
         """Calculate the Laplacian of the grid using a 3x3 convolution."""
@@ -88,24 +57,16 @@ class ZebraPatternModel:
         Lu = self.laplacian(self.U)
         Lv = self.laplacian(self.V)
         
-        # Calculate the reaction terms with more organic variation
+        # Calculate the reaction terms
         # This represents the interaction between melanocyte activators and inhibitors
         uv2 = self.U[1:-1, 1:-1] * self.V[1:-1, 1:-1] * self.V[1:-1, 1:-1]
         
-        # Add temporal variation to feed and kill rates
-        f_var = self.f * (1 + 0.1 * np.sin(0.1 * np.random.random()))
-        k_var = self.k * (1 + 0.1 * np.cos(0.1 * np.random.random()))
-        
-        # Update the grid with more organic dynamics
+        # Update the grid
         # Add a small amount of noise to simulate biological variability
         noise = np.random.normal(0, 0.001, (self.size-2, self.size-2))
         
-        # Add more dynamic stripe formation
-        stripe_effect = 1 + 0.2 * np.sin(0.1 * self.V[1:-1, 1:-1])
-        
-        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + f_var * (1 - self.U[1:-1, 1:-1])) + noise
-        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 * stripe_effect - 
-                                        (f_var + k_var) * self.V[1:-1, 1:-1]) + noise
+        self.U[1:-1, 1:-1] += self.dt * (self.Du * Lu - uv2 + self.f * (1 - self.U[1:-1, 1:-1])) + noise
+        self.V[1:-1, 1:-1] += self.dt * (self.Dv * Lv + uv2 - (self.f + self.k) * self.V[1:-1, 1:-1]) + noise
         
         # Enforce boundary conditions with smooth transitions
         self.U[0, :] = self.U[1, :]
